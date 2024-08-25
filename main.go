@@ -19,15 +19,18 @@ func main() {
 	file, oldOut := RedirectTo("./", "logs", "txt")
 
 	root := make([]*TreeFile, 0)
-	err := StartOffRoot(&root, "./")
+	struct1, err := StartOffRoot("./")
+	root = append(root, &struct1)
 	root, err = root, err
 
 	file, _ = RedirectTo("./", "logs1", "txt")
-	err = StartOffRoot(&root, "./../")
+	struct2, err := StartOffRoot("./../")
+	root = append(root, &struct2)
 
 	ResetOutput(oldOut, file)
 
 	fmt.Println("scanning complete")
+	fmt.Println(findFullPath(root[1].Childs[0].Childs[1]))
 
 }
 
@@ -64,6 +67,7 @@ func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 		isDir:    info.IsDir(),
 		Childs:   make([]*TreeFile, 0),
 		Parent:   Parent,
+		TreeSize: info.Size(), // önce kendi sizeına set edilir sonra size bulma metodu çağırılacak
 	})
 
 	index := len(*Childs) - 1
@@ -78,20 +82,51 @@ func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 	return nil
 }
 
-func StartOffRoot(rootParam *[]*TreeFile, path string) error {
-	return Iterate(rootParam, path, nil)
+func StartOffRoot(path string) (TreeFile, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return TreeFile{}, err
+	}
+
+	startingOff := TreeFile{
+		Name:     info.Name(),
+		FileSize: info.Size(),
+		isDir:    info.IsDir(),
+		Childs:   make([]*TreeFile, 0),
+		Parent:   nil,
+		TreeSize: info.Size(), // önce kendi sizeına set edilir sonra size bulma metodu çağırılacak
+	}
+
+	files, err := os.ReadDir(path)
+	for _, file := range files {
+		err = Iterate(&startingOff.Childs, filepath.Join(path, file.Name()), &startingOff)
+	}
+	if err != nil {
+		return TreeFile{}, err
+	}
+
+	return startingOff, nil
 }
 
-func findTreeSize(file *TreeFile) int64 {
-	return 0
+func findTreeSize(file *TreeFile) {
+	for _, ffile := range file.Childs {
+		findTreeSize(ffile)
+	}
+	for _, ffile := range file.Childs {
+		file.TreeSize += ffile.TreeSize
+	}
 }
 
 func findFullPath(file *TreeFile) string {
-	return ""
+	if file.Parent == nil {
+		return ""
+	}
+	return "" + findFullPath(file.Parent) + "/" + file.Name
 }
 
 // FIXME i need to learn more about callback funcs
 // FIXME these aint gonna work
+// FIXME also not tested
 
 func fromRootToTreeFileIter(folder *TreeFile, path string, fn func(data ...interface{})) error {
 	lastIndex := len(path) - len(folder.Name) - 1
