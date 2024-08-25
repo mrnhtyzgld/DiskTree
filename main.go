@@ -19,11 +19,11 @@ func main() {
 	file, oldOut := RedirectTo("./", "logs", "txt")
 
 	root := make([]*TreeFile, 0)
-	err := StartOffRoot("./", &root)
+	err := StartOffRoot(&root, "./")
 	root, err = root, err
 
 	file, _ = RedirectTo("./", "logs1", "txt")
-	err = StartOffRoot("./../", &root)
+	err = StartOffRoot(&root, "./../")
 
 	ResetOutput(oldOut, file)
 
@@ -52,7 +52,7 @@ func ResetOutput(out *os.File, file *os.File) {
 	os.Stdout = out
 }
 
-func Iterate(path string, Parent *TreeFile, Childs *[]*TreeFile) error {
+func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
@@ -71,15 +71,15 @@ func Iterate(path string, Parent *TreeFile, Childs *[]*TreeFile) error {
 
 	files, err := os.ReadDir(path)
 	for _, file := range files {
-		Iterate(filepath.Join(path, file.Name()), me, &me.Childs)
+		Iterate(&me.Childs, filepath.Join(path, file.Name()), me)
 	}
 
 	fmt.Println("succesfull: \t" + path)
 	return nil
 }
 
-func StartOffRoot(path string, rootParam *[]*TreeFile) error {
-	return Iterate(path, nil, rootParam)
+func StartOffRoot(rootParam *[]*TreeFile, path string) error {
+	return Iterate(rootParam, path, nil)
 }
 
 func findTreeSize(file *TreeFile) int64 {
@@ -90,8 +90,41 @@ func findFullPath(file *TreeFile) string {
 	return ""
 }
 
-func upIterator(fn func(...interface{})) {}
+// FIXME i need to learn more about callback funcs
+// FIXME these aint gonna work
 
-func postOrderIter(fn func(...interface{})) {
+func fromRootToTreeFileIter(folder *TreeFile, path string, fn func(data ...interface{})) error {
+	lastIndex := len(path) - len(folder.Name) - 1
+	err := fromRootToTreeFileIter(folder.Parent, path[0:lastIndex], fn)
+	fn()
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
+func postOrderIter(folder *TreeFile, path string, fn func(...interface{})) error {
+
+	err := *new(error)
+	for _, file := range (*folder).Childs {
+		err = postOrderIter(file, filepath.Join(path, file.Name), fn)
+	}
+	fn()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func preOrderIter(folder *TreeFile, path string, fn func(...interface{})) error {
+
+	fn()
+
+	err := *new(error)
+	for _, file := range (*folder).Childs {
+		err = preOrderIter(file, filepath.Join(path, file.Name), fn)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
 }
