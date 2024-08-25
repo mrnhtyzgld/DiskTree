@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 )
 
+// FIXME hata çözme-paniik
+// TODO add goroutine support
+
 type TreeFile struct {
 	Parent   *TreeFile
 	Name     string
@@ -26,12 +29,17 @@ func main() {
 	root := make([]*TreeFile, 0)
 	struct1, err := StartOffRoot("\"C:\\Users\\NihatEmreYüzügüldü\\Desktop\\100MEDİA\"")
 	root = append(root, &struct1)
-	root, err = root, err
+	if err != nil {
+		printErr("DiskTree okuması başarısız oldu")
+	}
 
 	/*
 		file, _ = RedirectTo("./", "logs1", "txt")
 		struct2, err := StartOffRoot("C:\\Users\\NihatEmreYüzügüldü\\GolandProjects\\awesomeProject")
 		root = append(root, &struct2)
+		if err != nil {
+			printErr("DiskTree okuması başarısız oldu")
+		}
 	*/
 
 	ResetOutput(oldOut, file)
@@ -64,6 +72,7 @@ func ResetOutput(out *os.File, file *os.File) {
 func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 	info, err := os.Stat(path)
 	if err != nil {
+		printErr("başarısız: " + path + " okunamadı")
 		return err
 	}
 
@@ -81,9 +90,12 @@ func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 
 	files, err := os.ReadDir(path)
 	for _, file := range files {
-		Iterate(&me.Childs, filepath.Join(path, file.Name()), me)
+		err = Iterate(&me.Childs, filepath.Join(path, file.Name()), me)
 	}
 
+	if err != nil {
+		return err
+	}
 	printLog("succesfull: \t" + path)
 	return nil
 }
@@ -91,6 +103,7 @@ func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 func StartOffRoot(path string) (TreeFile, error) {
 	info, err := os.Stat(path)
 	if err != nil {
+		printErr("root dizini okumada problem çıktı")
 		return TreeFile{}, err
 	}
 
@@ -107,11 +120,11 @@ func StartOffRoot(path string) (TreeFile, error) {
 	for _, file := range files {
 		err = Iterate(&startingOff.Childs, filepath.Join(path, file.Name()), &startingOff)
 	}
+	findTreeSize(&startingOff)
 	if err != nil {
 		return TreeFile{}, err
 	}
 
-	findTreeSize(&startingOff)
 	return startingOff, nil
 }
 
