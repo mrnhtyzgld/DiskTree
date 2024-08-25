@@ -15,23 +15,29 @@ type TreeFile struct {
 	Childs   []*TreeFile
 }
 
+var logState = false
+var errState = true
+
+var infoState = true
+
 func main() {
 	file, oldOut := RedirectTo("./", "logs", "txt")
 
 	root := make([]*TreeFile, 0)
-	struct1, err := StartOffRoot("./")
+	struct1, err := StartOffRoot("\"C:\\Users\\NihatEmreYüzügüldü\\Desktop\\100MEDİA\"")
 	root = append(root, &struct1)
 	root, err = root, err
 
-	file, _ = RedirectTo("./", "logs1", "txt")
-	struct2, err := StartOffRoot("./../")
-	root = append(root, &struct2)
+	/*
+		file, _ = RedirectTo("./", "logs1", "txt")
+		struct2, err := StartOffRoot("C:\\Users\\NihatEmreYüzügüldü\\GolandProjects\\awesomeProject")
+		root = append(root, &struct2)
+	*/
 
 	ResetOutput(oldOut, file)
 
-	fmt.Println("scanning complete")
-	fmt.Println(findFullPath(root[1].Childs[0].Childs[1]))
-
+	printInfo("scanning complete")
+	printInfo(struct1.TreeSize, struct1.Childs[0].TreeSize)
 }
 
 func RedirectTo(path string, name string, fileType string) (*os.File, *os.File) {
@@ -39,7 +45,7 @@ func RedirectTo(path string, name string, fileType string) (*os.File, *os.File) 
 	oldOut := os.Stdout
 	file, err := os.Create(path + name + "." + fileType)
 	if err != nil {
-		fmt.Println("Error creating file:", err)
+		printErr("Error creating file:", err)
 		return nil, nil
 	}
 
@@ -50,7 +56,7 @@ func RedirectTo(path string, name string, fileType string) (*os.File, *os.File) 
 
 func ResetOutput(out *os.File, file *os.File) {
 	if err := file.Close(); err != nil {
-		fmt.Println("Error closing file:", err)
+		printErr("Error closing file:", err)
 	}
 	os.Stdout = out
 }
@@ -78,7 +84,7 @@ func Iterate(Childs *[]*TreeFile, path string, Parent *TreeFile) error {
 		Iterate(&me.Childs, filepath.Join(path, file.Name()), me)
 	}
 
-	fmt.Println("succesfull: \t" + path)
+	printLog("succesfull: \t" + path)
 	return nil
 }
 
@@ -94,7 +100,7 @@ func StartOffRoot(path string) (TreeFile, error) {
 		isDir:    info.IsDir(),
 		Childs:   make([]*TreeFile, 0),
 		Parent:   nil,
-		TreeSize: info.Size(), // önce kendi sizeına set edilir sonra size bulma metodu çağırılacak
+		TreeSize: info.Size(), // önce kendi sizeına set edilir sonra recursive size bulma metodu çağırılacak
 	}
 
 	files, err := os.ReadDir(path)
@@ -105,6 +111,7 @@ func StartOffRoot(path string) (TreeFile, error) {
 		return TreeFile{}, err
 	}
 
+	findTreeSize(&startingOff)
 	return startingOff, nil
 }
 
@@ -124,10 +131,25 @@ func findFullPath(file *TreeFile) string {
 	return "" + findFullPath(file.Parent) + "/" + file.Name
 }
 
+func printLog(a ...any) {
+	if logState {
+		fmt.Println(a...)
+	}
+}
+func printErr(a ...any) {
+	if errState {
+		fmt.Println(a...)
+	}
+}
+func printInfo(a ...any) {
+	if infoState {
+		fmt.Println(a...)
+	}
+}
+
 // FIXME i need to learn more about callback funcs
 // FIXME these aint gonna work
 // FIXME also not tested
-
 func fromRootToTreeFileIter(folder *TreeFile, path string, fn func(data ...interface{})) error {
 	lastIndex := len(path) - len(folder.Name) - 1
 	err := fromRootToTreeFileIter(folder.Parent, path[0:lastIndex], fn)
@@ -137,7 +159,6 @@ func fromRootToTreeFileIter(folder *TreeFile, path string, fn func(data ...inter
 	}
 	return nil
 }
-
 func postOrderIter(folder *TreeFile, path string, fn func(...interface{})) error {
 
 	err := *new(error)
